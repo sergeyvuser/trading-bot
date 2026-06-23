@@ -1,0 +1,1 @@
+"""WS JSON -> WEB DTO parsing -> STORAGE (queue/cache)"""

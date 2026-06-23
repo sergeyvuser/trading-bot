@@ -1,0 +1,50 @@
+hosts:
+  api_mainnet: "https://api.bybit.com"
+  api_testnet: "https://api-testnet.bybit.com"
+  ws_mainnet: "wss://stream.bybit.com"
+  ws_testnet: "wss://stream-testnet.bybit.com"
+  api_telegram: "https://api.telegram.org"
+
+ws_categories:
+  spot: "spot"
+  option: "option"
+  linear: "linear"
+  inverse: "inverse"
+  rfq: "rfq"
+
+ws_core_config:
+  ping_interval: 20
+  reconnect_delay: 5
+
+market_kline_api:
+  path: "/v5/market/kline"
+  limit: "1000" # Limit for data size per page. [1, 1000]. Default: 200
+
+logging:
+  level: "DEBUG" # "INFO", "DEBUG", "WARNING", "ERROR", "TRACE"
+  format: "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>"
+  to_file: true
+  rotation: "10 MB"
+  retention: "7 days"
+
+# Настройки торговых циклов
+intervals:
+  "1": 1
+  "3": 3
+  "5": 5
+  "15": 15
+  "30": 30
+  "60": 60
+  "120": 120
+  "240": 240
+  "360": 360
+  "720": 720
+  "D": 1440
+  "W": 10080
+
+#
+bot_core:
+  api_delay_sec: 5
+  maxlen: 1500
+
+

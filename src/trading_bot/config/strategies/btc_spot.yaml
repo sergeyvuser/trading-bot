@@ -1,0 +1,24 @@
+symbol: "BTCUSDT"
+category: "spot"
+interval: "60"
+
+# Strategy selection and its parameters
+strategy:
+  name: "trend_following"
+  params: {}
+
+# Indicators computed for this strategy (registry name + params).
+# Column names follow the canonical convention: ema_<p>, sma_<p>, rsi_<p>, macd/macd_signal/macd_hist
+indicators:
+  - { name: "ema", params: { timeperiod: 12 } }
+  - { name: "ema", params: { timeperiod: 26 } }
+  - { name: "ema", params: { timeperiod: 100 } }
+  - { name: "ema", params: { timeperiod: 200 } }
+  - { name: "sma", params: { timeperiod: 50 } }
+  - { name: "sma", params: { timeperiod: 200 } }
+  - { name: "rsi", params: { timeperiod: 14 } }
+  - { name: "macd", params: { fastperiod: 12, slowperiod: 26, signalperiod: 9 } }
+
+# Bot settings
+bot:
+  api_delay_sec: 5

@@ -1,0 +1,75 @@
+[project]
+name = "trading_bot"
+version = "0.1.0"
+authors = [
+    { name = "Sergey Vorobiev", email = "vorobevsy@gmail.com" },
+]
+description = "Personal Trading Bot"
+readme = "README.md"
+requires-python = ">=3.14"
+license = "MIT"
+license-files = ["LICEN[CS]E*"]
+
+dependencies = [
+    "websockets>=12.0",
+    "pydantic>=2.13.1",
+    "pydantic-settings>=2.0",
+    "ccxt>=4.0",
+    "loguru>=0.7",
+    "python-dotenv>=1.0",
+    "aiohttp>=3.9",
+    "numpy>=2.4.4",
+    "zapros>=0.9.0",
+    "polars>=1.41.2",
+    "polars-talib>=0.1.6",
+    "tzdata>=2026.2",
+    "msgspec>=0.21.1",
+    "pyyaml>=6.0.3",
+]
+
+[project.urls]
+Homepage = "https://github.com/{}"
+Issues = "https://github.com/{}/issues"
+
+[project.scripts]
+
+
+[build-system]
+requires = ["uv_build>=0.9.29,<0.10.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "trading_bot"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0",
+    "pytest-cov>=7.1.0",
+    "pytest-asyncio>=1.3.0",
+    "ruff>=0.15.16",
+    "ty>=0.0.46",
+]
+
+[tool.pytest]
+minversion = "9.0"
+addopts = [
+    #"-ra",
+    #"-q",
+    "-vv",
+    "--import-mode=importlib",
+]
+
+testpaths = [
+    "tests",
+    "integration",
+]
+#strict = true
+
+[tool.ruff]
+# Sets the maximum line length for the formatter
+#line-length = 120
+
+[tool.ruff.lint.pycodestyle]
+# Sets the maximum line length for the pycodestyle linter rule (E501)
+#max-line-length = 120
+
