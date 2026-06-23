@@ -24,8 +24,6 @@ Repository (source) -> Extractor (format) -> InMemoryState (storage)
   (`config/strategies/<ACTIVE_STRATEGY>.yaml`) defines the pair, market category,
   interval, strategy and its indicators.
 
-See [CLAUDE.md](CLAUDE.md) for a deeper architecture overview.
-
 ## Setup
 
 Requires Python >= 3.14 and [`uv`](https://docs.astral.sh/uv/).
@@ -66,7 +64,7 @@ category: "spot"
 interval: "60"
 strategy:
   name: "trend_following"
-  params: {}
+  params: { }
 indicators:
   - { name: "ema", params: { timeperiod: 200 } }
   - { name: "rsi", params: { timeperiod: 14 } }
