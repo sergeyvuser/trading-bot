@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 
 from trading_bot.models.analysis import IndicatorSnapshot
 from trading_bot.models.market import SpotTickerDTO
+from trading_bot.models.signals import Signal
 
 
 class IMarketRepository(ABC):
@@ -31,6 +32,7 @@ class IStrategy(ABC):
     ``IndicatorSnapshot``; the strategy is invoked on each price tick to evaluate it.
     """
 
+    name: str  # registry key
     symbol: str
 
     @abstractmethod
@@ -41,6 +43,6 @@ class IStrategy(ABC):
     @abstractmethod
     async def on_tick(
         self, ticker: SpotTickerDTO, snapshot: IndicatorSnapshot | None
-    ) -> None:
+    ) -> Signal | None:
         """Evaluate the strategy against the latest price and indicator snapshot."""
         ...

@@ -1,11 +1,11 @@
 symbol: "BTCUSDT"
 category: "spot"
-interval: "60"
+interval: "1"
 
 # Strategy selection and its parameters
 strategy:
   name: "trend_following"
-  params: {}
+  params: { }
 
 # Indicators computed for this strategy (registry name + params).
 # Column names follow the canonical convention: ema_<p>, sma_<p>, rsi_<p>, macd/macd_signal/macd_hist

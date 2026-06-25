@@ -10,6 +10,7 @@ Turns raw exchange payloads into the representation each consumer needs:
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
+import msgspec
 import polars as pl
 from loguru import logger
 
@@ -103,20 +104,61 @@ class BybitKlineExtractor:
         return df
 
 
+class _BybitTickerData(
+    msgspec.Struct,
+    rename={
+        "last_price": "lastPrice",
+        "high_price_24h": "highPrice24h",
+        "low_price_24h": "lowPrice24h",
+        "prev_price_24h": "prevPrice24h",
+        "volume_24h": "volume24h",
+        "turnover_24h": "turnover24h",
+        "price_pcnt_24h": "price24hPcnt",
+        "usd_index_price": "usdIndexPrice",
+    },
+):
+    """Bybit WS `tickers.<symbol>` data payload (prices arrive as JSON strings;
+    decoded with strict=False so msgspec casts str -> float on the C side)."""
+
+    symbol: str
+    last_price: float
+    high_price_24h: float
+    low_price_24h: float
+    prev_price_24h: float
+    volume_24h: float
+    turnover_24h: float
+    price_pcnt_24h: float
+    usd_index_price: float | None = None
+
+
+class _BybitWsMessage(msgspec.Struct):
+    """Envelope tolerant of non-data frames (subscription ack / pong have no `data`)."""
+
+    topic: str | None = None
+    ts: int = 0
+    data: _BybitTickerData | None = None
+
+
 class BybitTickerExtractor:
+    """Decodes a raw WS frame straight into a typed struct (no intermediate dict)."""
+
+    _decoder = msgspec.json.Decoder(_BybitWsMessage, strict=False)
+
     @classmethod
-    def to_spot_ticker(cls, payload: dict, ts: int) -> SpotTickerDTO:
-        """Build a hot spot ticker DTO from a WS ticker payload."""
-        usd_index = payload.get("usdIndexPrice")
+    def decode(cls, raw: str | bytes) -> SpotTickerDTO | None:
+        msg = cls._decoder.decode(raw)
+        if msg.data is None or msg.topic is None or not msg.topic.startswith("tickers."):
+            return None
+        d = msg.data
         return SpotTickerDTO(
-            timestamp=ts,
-            symbol=payload["symbol"],
-            last_price=float(payload["lastPrice"]),
-            high_price_24h=float(payload["highPrice24h"]),
-            low_price_24h=float(payload["lowPrice24h"]),
-            prev_price_24h=float(payload["prevPrice24h"]),
-            volume_24h=float(payload["volume24h"]),
-            turnover_24h=float(payload["turnover24h"]),
-            price_pcnt_24h=float(payload["price24hPcnt"]),
-            usd_index_price=float(usd_index) if usd_index else None,
+            timestamp=msg.ts,
+            symbol=d.symbol,
+            last_price=d.last_price,
+            high_price_24h=d.high_price_24h,
+            low_price_24h=d.low_price_24h,
+            prev_price_24h=d.prev_price_24h,
+            volume_24h=d.volume_24h,
+            turnover_24h=d.turnover_24h,
+            price_pcnt_24h=d.price_pcnt_24h,
+            usd_index_price=d.usd_index_price,
         )

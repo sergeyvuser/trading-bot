@@ -73,7 +73,7 @@ class Settings(BaseSettings):
     # API keys and secrets and core settings
     BYBIT_API_KEY: SecretStr
     BYBIT_API_SECRET: SecretStr
-    ACTIVE_STRATEGY: str = "btc_spot"
+    ACTIVE_STRATEGY: str = "btc_spot_trend_following"
     TESTNET: bool = True
     DRY_RUN: bool = True
     RISK_PER_TRADE: float = 0.02
@@ -144,25 +144,6 @@ class Settings(BaseSettings):
         return self
 
     # --- Derived URLs ---
-    @property
-    def base_api_url(self) -> str:
-        return str(self.hosts.api_testnet if self.TESTNET else self.hosts.api_mainnet)
-
-    @property
-    def base_ws_url(self) -> str:
-        return str(self.hosts.ws_testnet if self.TESTNET else self.hosts.ws_mainnet)
-
-    @property
-    def public_ws_url(self) -> str:
-        return f"{self.base_ws_url}v5/public/{self.category}"
-
-    @property
-    def spot_ws_url(self) -> str:
-        return f"{self.base_ws_url}v5/public/spot"
-
-    @property
-    def linear_ws_url(self) -> str:
-        return f"{self.base_ws_url}v5/public/linear"
 
     @property
     def tg_bot_url(self):
@@ -184,7 +165,7 @@ class Settings(BaseSettings):
 def load_settings() -> Settings:
     # Load environment variables from .env file to retrieve active strategy name
     class EnvReader(BaseSettings):
-        ACTIVE_STRATEGY: str = "btc_spot"
+        ACTIVE_STRATEGY: str = "btc_spot_trend_following"
         model_config = SettingsConfigDict(
             env_file=ENV_FILE_PATH, env_file_encoding="utf-8", extra="ignore"
         )
@@ -194,7 +175,6 @@ def load_settings() -> Settings:
 
     # Load base config
     with open(CONFIG_DIR / "config.yaml", "rb") as f:  # use encoding="utf-8" for "r"
-        # config_data = yaml.safe_load(f)
         config_data = msgspec.yaml.decode(f.read(), type=dict)
 
     # Load strategy config
@@ -202,8 +182,9 @@ def load_settings() -> Settings:
     if not strategy_path.exists():
         raise FileNotFoundError(f"Strategy config not found: {strategy_path}")
 
-    with open(strategy_path, "rb") as f:  # msgspec decodes bytes on the C side, so open in "rb"
-        # strategy_data = yaml.safe_load(f)
+    with open(
+        strategy_path, "rb"
+    ) as f:  # msgspec decodes bytes on the C side, so open in "rb"
         strategy_data = msgspec.yaml.decode(f.read(), type=dict)
 
     # Merge config and strategy config

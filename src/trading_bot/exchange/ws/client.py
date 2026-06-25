@@ -1,7 +1,6 @@
 import asyncio
 
 import aiohttp
-import msgspec
 from loguru import logger
 
 from trading_bot.exchange.interfaces import IExchangeWSClient
@@ -25,14 +24,11 @@ class BybitWSClient(IExchangeWSClient):
         self._orderbook_depth = orderbook_depth
         self._reconnect_delay = reconnect_delay
         self._ping_interval = ping_interval
-        self._decoder = msgspec.json.Decoder()
 
     async def _get_subscriptions(self) -> list[str]:
-        return [
-            f"publicTrade.{self._symbol}",
-            f"orderbook.{self._orderbook_depth}.{self._symbol}",
-            f"tickers.{self._symbol}",
-        ]
+        # Stage 2 part 1: price ticks only. publicTrade/orderbook are added later
+        # (scalping / liquidity-aware risk).
+        return [f"tickers.{self._symbol}"]
 
     async def _subscribe(self, ws: aiohttp.ClientWebSocketResponse) -> None:
         topics = await self._get_subscriptions()
@@ -86,43 +82,10 @@ class BybitWSClient(IExchangeWSClient):
         self, raw_msg_data: str, ticker_queue: asyncio.Queue
     ) -> None:
         try:
-            # data = json.loads(raw_msg_data)
-            data = self._decoder.decode(raw_msg_data)
-
-            logger.debug(f"Received message: {data}")
-            if "topic" not in data or "data" not in data:
-                return
-
-            topic: str = data.get("topic", "")
-            if topic.startswith("kline."):
-                self._handle_kline(data)
-            elif topic.startswith("publicTrade."):
-                self._handle_trades(data)
-            elif topic.startswith("orderbook."):
-                self._handle_orderbook(data)
-            elif topic.startswith("tickers."):
-                self._handle_ticker(data, ticker_queue)
-            else:
-                logger.debug(f"[Spot] Unknown topic: {topic}\n{data}")
-        except Exception as e:
-            logger.error(f"Error processing WS message: {e}")
-
-    @classmethod
-    def _handle_ticker(cls, data: dict, ticker_queue: asyncio.Queue) -> None:
-        payload = data.get("data", {})
-        ts = data.get("ts", 0)
-        try:
-            ticker_dto = BybitTickerExtractor.to_spot_ticker(payload, ts)
+            ticker_dto = BybitTickerExtractor.decode(raw_msg_data)
+            if ticker_dto is None:
+                return  # subscription ack / pong / non-ticker frame
             ticker_queue.put_nowait(ticker_dto)
             logger.debug(f"[Spot] Ticker last price={ticker_dto.last_price}")
         except Exception as e:
-            logger.error(f"Error processing ticker message: {e}")
-
-    def _handle_kline(self, data):
-        pass
-
-    def _handle_trades(self, data):
-        pass
-
-    def _handle_orderbook(self, data):
-        pass
+            logger.error(f"Error processing WS message: {e}")

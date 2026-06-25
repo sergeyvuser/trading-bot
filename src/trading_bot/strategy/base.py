@@ -4,6 +4,7 @@ from typing import Any
 
 from trading_bot.models.analysis import IndicatorSnapshot
 from trading_bot.models.market import SpotTickerDTO
+from trading_bot.models.signals import Signal
 from trading_bot.strategy.interfaces import IStrategy
 from trading_bot.strategy.models import IndicatorConfig
 
@@ -22,5 +23,5 @@ class BaseStrategy(IStrategy):
 
     async def on_tick(
         self, ticker: SpotTickerDTO, snapshot: IndicatorSnapshot | None
-    ) -> None:
+    ) -> Signal | None:
         raise NotImplementedError

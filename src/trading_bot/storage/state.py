@@ -16,9 +16,11 @@ class InMemoryState:
     def __init__(self):
         self._klines_dataframes: dict[str, pl.DataFrame] = {}  # {"BTCUSDT": DataFrame}
         self._indicator_snapshots: dict[str, IndicatorSnapshot] = {}
+        self._last_prices: dict[str, float] = {}  # live price from WS ticks
 
         self._klines_lock = asyncio.Lock()
         self._snapshot_lock = asyncio.Lock()
+        self._price_lock = asyncio.Lock()
 
     # --- Klines (DataFrame, source of truth) ---
     async def set_klines_dataframe(
@@ -38,6 +40,15 @@ class InMemoryState:
     async def get_first_kline_dataframe(self, symbol: str) -> pl.DataFrame:
         async with self._klines_lock:
             return self._klines_dataframes.get(symbol, pl.DataFrame()).head(1)
+
+    # --- Live price (from WS ticks) ---
+    async def set_last_price(self, symbol: str, price: float) -> None:
+        async with self._price_lock:
+            self._last_prices[symbol] = price
+
+    async def get_last_price(self, symbol: str) -> float | None:
+        async with self._price_lock:
+            return self._last_prices.get(symbol)
 
     # --- Indicator snapshot (computed on closed candles) ---
     async def set_indicator_snapshot(self, snapshot: IndicatorSnapshot) -> None:
