@@ -28,9 +28,8 @@ class MarketDataSyncService:
         self._category = category
         self._indicator_engine = indicator_engine
         self._interval_delta = interval_timedelta(self._interval)
-        self._delay_seconds = (
-            2.0  # Technical delay between syncs to avoid Bybit cache not updating
-        )
+        # Technical delay between syncs to avoid Bybit cache not updating
+        self._delay_seconds = 2.0
 
     async def start_sync_loop(self, rest_path: str) -> None:
         logger.info(
@@ -73,30 +72,27 @@ class MarketDataSyncService:
         pass
 
     async def _calculate_sleep_seconds(self) -> float:
+        """Sleep until the currently-forming candle closes (+ a small delay).
 
+        Bybit candles are aligned to the epoch on the interval grid, so the next
+        close time is derived directly from ``now`` — independent of how many
+        forming candles the extractor drops (``drop_unclosed``).
+        """
         current_time: datetime = datetime.now(UTC)
 
         klines = await self._state.get_klines_dataframe(self._symbol)
         if klines.is_empty():
             return 10.0
 
-        last_kline_dataframe = await self._state.get_last_kline_dataframe(self._symbol)
-        last_kline_start_time: datetime = last_kline_dataframe["start_time"].item()
-
-        next_kline_start_time: datetime = (
-            last_kline_start_time + 2 * self._interval_delta
-        )  # !refactor based on BybitKlineExtractor.to_pl_dataframe drop_unclosed attr
-        time_to_next_kline = (next_kline_start_time - current_time).total_seconds()
-        final_sleep_seconds = time_to_next_kline + self._delay_seconds
-        first_kline_dataframe = await self._state.get_first_kline_dataframe(
-            self._symbol
-        )
-        first_kline_start_time = first_kline_dataframe["start_time"].item()
+        interval_seconds = self._interval_delta.total_seconds()
+        now_ts = current_time.timestamp()
+        # Next candle boundary on the interval grid = close of the forming candle.
+        next_close_ts = (now_ts // interval_seconds + 1) * interval_seconds
+        final_sleep_seconds = (next_close_ts - now_ts) + self._delay_seconds
 
         logger.debug(
             f"Current time: {current_time}\n"
-            f"Next kline start time: {next_kline_start_time}\n"
-            f"First kline start time: {first_kline_start_time}"
+            f"Next kline close: {datetime.fromtimestamp(next_close_ts, UTC)}"
         )
 
         # Sleep for at least 1 second (to avoid negative sleep)

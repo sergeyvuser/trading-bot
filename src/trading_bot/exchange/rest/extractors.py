@@ -114,7 +114,6 @@ class _BybitTickerData(
         "volume_24h": "volume24h",
         "turnover_24h": "turnover24h",
         "price_pcnt_24h": "price24hPcnt",
-        "usd_index_price": "usdIndexPrice",
     },
 ):
     """Bybit WS `tickers.<symbol>` data payload (prices arrive as JSON strings;
@@ -128,7 +127,6 @@ class _BybitTickerData(
     volume_24h: float
     turnover_24h: float
     price_pcnt_24h: float
-    usd_index_price: float | None = None
 
 
 class _BybitWsMessage(msgspec.Struct):
@@ -164,5 +162,4 @@ class BybitTickerExtractor:
             volume_24h=d.volume_24h,
             turnover_24h=d.turnover_24h,
             price_pcnt_24h=d.price_pcnt_24h,
-            usd_index_price=d.usd_index_price,
         )

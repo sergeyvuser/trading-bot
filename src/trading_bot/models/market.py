@@ -24,7 +24,6 @@ class SpotTickerDTO(msgspec.Struct, frozen=True):
     volume_24h: float
     turnover_24h: float
     price_pcnt_24h: float
-    usd_index_price: float | None = None
 
 
 class TradeDTO(msgspec.Struct, frozen=True):
