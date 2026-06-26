@@ -19,6 +19,14 @@ indicators:
   - { name: "rsi", params: { timeperiod: 14 } }
   - { name: "macd", params: { fastperiod: 12, slowperiod: 26, signalperiod: 9 } }
 
+# Risk management (ATR fractional risk; equity is paper until account API)
+risk:
+  risk_per_trade: 0.02      # fraction of equity risked per trade
+  max_daily_loss: 0.05      # fraction of equity
+  starting_equity: 10000    # paper equity (USDT)
+  atr_period: 14
+  atr_mult: 1.5             # stop distance = atr_mult * ATR
+
 # Bot settings
 bot:
   api_delay_sec: 5

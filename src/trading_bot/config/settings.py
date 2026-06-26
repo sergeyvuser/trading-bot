@@ -14,7 +14,12 @@ from pydantic import (
 )
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from trading_bot.strategy.models import IndicatorConfig, StrategyMeta, StrategyProfile
+from trading_bot.strategy.models import (
+    IndicatorConfig,
+    RiskConfig,
+    StrategyMeta,
+    StrategyProfile,
+)
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
 CONFIG_DIR = BASE_DIR / "src" / "trading_bot" / "config"
@@ -98,6 +103,7 @@ class Settings(BaseSettings):
     interval: str
     strategy: StrategyMeta
     indicators: List[IndicatorConfig] = []
+    risk: RiskConfig
 
     orderbook_depth: int = Field(50, alias="ORDERBOOK_DEPTH")
 
@@ -158,6 +164,7 @@ class Settings(BaseSettings):
             interval=self.interval,
             strategy=self.strategy,
             indicators=self.indicators,
+            risk=self.risk,
         )
 
 

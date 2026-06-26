@@ -16,12 +16,19 @@ from trading_bot.models.market import SpotTickerDTO
 from trading_bot.models.signals import SignalType
 from trading_bot.storage.state import InMemoryState
 from trading_bot.strategy.interfaces import IStrategy
+from trading_bot.strategy.risk import RiskManager
 
 
 class TradingEngine:
-    def __init__(self, state: InMemoryState, strategy: IStrategy | None) -> None:
+    def __init__(
+        self,
+        state: InMemoryState,
+        strategy: IStrategy | None,
+        risk_manager: RiskManager | None = None,
+    ) -> None:
         self._state = state
         self._strategy = strategy
+        self._risk_manager = risk_manager
         self._is_running = True
         self._symbol = strategy.symbol if strategy else None
         self._last_eval_price: float | None = None
@@ -52,8 +59,18 @@ class TradingEngine:
                 self._last_eval_snap_ts = snap_ts
 
                 signal = await self._strategy.on_tick(ticker, snapshot)
-                if signal is not None and signal.type is not SignalType.HOLD:
-                    logger.info(f"Signal: {signal.type.value} | {signal.reason}")
+                if signal is None or signal.type is SignalType.HOLD:
+                    continue
+                logger.info(f"Signal: {signal.type.value} | {signal.reason}")
+
+                if self._risk_manager is None:
+                    continue
+                intent = self._risk_manager.evaluate(signal, snapshot)
+                if intent is not None:
+                    logger.info(
+                        f"OrderIntent: {intent.side} size={intent.size:.6f} "
+                        f"stop={intent.stop_loss:.2f} | {intent.reason}"
+                    )
             except Exception as e:
                 logger.error(f"Error in trading loop: {e}", exc_info=True)
             finally:

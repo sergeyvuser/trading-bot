@@ -12,6 +12,7 @@ from trading_bot.strategy.engine import TradingEngine
 from trading_bot.strategy.indicators import IndicatorEngine
 from trading_bot.strategy.models import IndicatorConfig
 from trading_bot.strategy.registry import make_strategy
+from trading_bot.strategy.risk import RiskManager
 from trading_bot.tg import TelegramHandler
 
 
@@ -49,9 +50,12 @@ class TradingBotPolars:
         rest_client = BybitRestClient(base_url=settings.resolved_rest_url)
         market_repo = BybitMarketRepository(state=self.state, rest_client=rest_client)
 
-        # Indicators: profile base + whatever the strategy needs (hybrid), de-duplicated.
+        # Indicators: profile base + strategy needs + ATR (for risk sizing), de-duplicated.
+        atr_indicator = [
+            IndicatorConfig(name="atr", params={"timeperiod": settings.risk.atr_period})
+        ]
         indicators = _merge_indicators(
-            settings.indicators, self.strategy.required_indicators()
+            settings.indicators, self.strategy.required_indicators(), atr_indicator
         )
         indicator_engine = IndicatorEngine(indicators=indicators)
 
@@ -74,7 +78,10 @@ class TradingBotPolars:
             ping_interval=settings.ws_core_config.ping_interval,
         )
 
-        engine = TradingEngine(state=self.state, strategy=self.strategy)
+        risk_manager = RiskManager(config=settings.risk)
+        engine = TradingEngine(
+            state=self.state, strategy=self.strategy, risk_manager=risk_manager
+        )
         tg_bot = TelegramHandler(tg_bot_url=settings.tg_bot_url)
 
         logger.info("All components initialized successfully.")

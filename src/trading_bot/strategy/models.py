@@ -20,9 +20,18 @@ class StrategyMeta(BaseModel):
     params: dict[str, Any] = Field(default_factory=dict)
 
 
+class RiskConfig(BaseModel):
+    risk_per_trade: float = Field(gt=0, le=1)  # fraction of equity risked per trade
+    max_daily_loss: float = Field(gt=0, le=1)  # fraction of equity
+    starting_equity: float = Field(gt=0)  # paper equity until account API
+    atr_period: int = Field(default=14, ge=2)
+    atr_mult: float = Field(default=1.5, gt=0)  # stop distance = atr_mult * ATR
+
+
 class StrategyProfile(BaseModel):
     symbol: str
     category: Literal["spot", "option", "linear", "inverse", "rfq"]
     interval: str
     strategy: StrategyMeta
     indicators: list[IndicatorConfig] = Field(default_factory=list)
+    risk: RiskConfig

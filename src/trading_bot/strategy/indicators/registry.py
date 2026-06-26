@@ -13,15 +13,14 @@ _REGISTRY: dict[str, IndicatorBuilder] = {
     "sma": ind.sma_exprs,
     "rsi": ind.rsi_exprs,
     "macd": ind.macd_exprs,
+    "atr": ind.atr_exprs,
 }
 
 
 def get_builder(name: str) -> IndicatorBuilder:
     builder = _REGISTRY.get(name.lower())
     if builder is None:
-        raise ValueError(
-            f"Unknown indicator '{name}'. Available: {sorted(_REGISTRY)}"
-        )
+        raise ValueError(f"Unknown indicator '{name}'. Available: {sorted(_REGISTRY)}")
     return builder
 
 
