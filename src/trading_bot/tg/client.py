@@ -20,7 +20,9 @@ class TelegramHandler:
                 )
 
                 if response.status != 200:
-                    logger.error(f"Telegram API error {response.status}: {response.text}")
+                    logger.error(
+                        f"Telegram API error {response.status}: {response.text}"
+                    )
 
         except Exception as e:
             logger.error(f"Failed to send Telegram message: {e}")
@@ -28,4 +30,6 @@ class TelegramHandler:
 
 async def notify_telegram(telegram_handler: TelegramHandler, message: str):
     if telegram_handler:
-        await telegram_handler.send_message(chat_id=settings.TELEGRAM_CHAT_ID, message=message)
+        await telegram_handler.send_message(
+            chat_id=settings.TELEGRAM_CHAT_ID, message=message
+        )

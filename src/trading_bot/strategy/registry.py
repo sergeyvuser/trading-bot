@@ -13,9 +13,7 @@ _REGISTRY: dict[str, type[IStrategy]] = {
 def make_strategy(name: str, symbol: str, params: dict[str, Any]) -> IStrategy:
     strategy_cls = _REGISTRY.get(name)
     if strategy_cls is None:
-        raise ValueError(
-            f"Unknown strategy '{name}'. Available: {sorted(_REGISTRY)}"
-        )
+        raise ValueError(f"Unknown strategy '{name}'. Available: {sorted(_REGISTRY)}")
     return strategy_cls(symbol=symbol, params=params)
 
 

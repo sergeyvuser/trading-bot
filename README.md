@@ -4,14 +4,12 @@ Async-first trading bot for Bybit, built on a fast data stack
 (`msgspec` + `polars` + `polars_talib`). `pydantic` is used only on the cold path
 (config/startup validation).
 
-> Status: stage 1 (data + indicator pipeline up to signal). WS execution, risk
-> management and orders are stage 2.
-
 ## Architecture
 
 ```
 Repository (source) -> Extractor (format) -> InMemoryState (storage)
-    -> IndicatorEngine -> IndicatorSnapshot -> Strategy -> (Order, stage 2)
+    -> IndicatorEngine -> IndicatorSnapshot
+    -> Strategy (Signal) -> RiskManager (OrderIntent) -> (Order, not yet implemented)
 ```
 
 - **Two clocks** — indicators are computed on each *closed candle* (REST sync) and
@@ -56,7 +54,7 @@ docker compose up
 ## Configuration
 
 A strategy profile is the single source of truth. Example
-(`src/trading_bot/config/strategies/btc_spot.yaml`):
+(`src/trading_bot/config/strategies/btcusdt_spot_60_trend_following.yaml`):
 
 ```yaml
 symbol: "BTCUSDT"
@@ -69,10 +67,20 @@ indicators:
   - { name: "ema", params: { timeperiod: 200 } }
   - { name: "rsi", params: { timeperiod: 14 } }
   - { name: "macd", params: { fastperiod: 12, slowperiod: 26, signalperiod: 9 } }
+risk:
+  risk_per_trade: 0.02      # fraction of equity risked per trade
+  max_daily_loss: 0.05      # fraction of equity
+  starting_equity: 10000    # paper equity (USDT) until account API
+  atr_period: 14
+  atr_mult: 1.5             # stop distance = atr_mult * ATR
 ```
 
 Indicator columns use canonical lowercase names: `ema_200`, `rsi_14`,
-`macd` / `macd_signal` / `macd_hist`.
+`macd` / `macd_signal` / `macd_hist`, `atr_14`.
+
+The `RiskManager` sizes positions with ATR fractional risk
+(`size = equity * risk_per_trade / (atr_mult * ATR)`) and produces an `OrderIntent`;
+order execution (Decimal quantization, account/PnL) is not yet implemented.
 
 ## License
 

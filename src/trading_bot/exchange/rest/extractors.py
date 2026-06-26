@@ -147,7 +147,11 @@ class BybitTickerExtractor:
     @classmethod
     def decode(cls, raw: str | bytes) -> SpotTickerDTO | None:
         msg = cls._decoder.decode(raw)
-        if msg.data is None or msg.topic is None or not msg.topic.startswith("tickers."):
+        if (
+            msg.data is None
+            or msg.topic is None
+            or not msg.topic.startswith("tickers.")
+        ):
             return None
         d = msg.data
         return SpotTickerDTO(
