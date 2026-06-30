@@ -1,4 +1,4 @@
-.PHONY: install run dev lint clean
+.PHONY: install run dev lint format clean test
 
 # ── Configuration ────────────────────────────────────────────────────────────
 PYTHON     := uv run python
@@ -28,5 +28,6 @@ run: ## Run trading bot
 dev:
 	$(PYTHON) -m trading_bot.main --debug
 
-run_test:
-	$(PYTHON) -m trading_bot.test
+# ── Tests ────────────────────────────────────────────────────────────────────
+test: ## Run the pytest suite (tests/)
+	$(PYTEST)

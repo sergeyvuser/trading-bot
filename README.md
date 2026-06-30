@@ -9,7 +9,8 @@ Async-first trading bot for Bybit, built on a fast data stack
 ```
 Repository (source) -> Extractor (format) -> InMemoryState (storage)
     -> IndicatorEngine -> IndicatorSnapshot
-    -> Strategy (Signal) -> RiskManager (OrderIntent) -> (Order, not yet implemented)
+    -> Strategy (Signal) -> RiskManager (OrderIntent)
+    -> OrderManager (market order + Position)
 ```
 
 - **Two clocks** — indicators are computed on each *closed candle* (REST sync) and
@@ -21,6 +22,10 @@ Repository (source) -> Extractor (format) -> InMemoryState (storage)
 - **Single source of truth** — one `StrategyProfile` per running container
   (`config/strategies/<ACTIVE_STRATEGY>.yaml`) defines the pair, market category,
   interval, strategy and its indicators.
+- **Spot execution** — `OrderManager` places a market entry, the engine monitors the
+  stop locally (price tick vs stop) and exits with a market sell; position and paper
+  PnL are tracked in `InMemoryState`. Everything is gated by `DRY_RUN` (simulated
+  fills, no API call). Order POSTs are signed with Bybit v5 HMAC-SHA256.
 
 ## Setup
 
@@ -79,8 +84,14 @@ Indicator columns use canonical lowercase names: `ema_200`, `rsi_14`,
 `macd` / `macd_signal` / `macd_hist`, `atr_14`.
 
 The `RiskManager` sizes positions with ATR fractional risk
-(`size = equity * risk_per_trade / (atr_mult * ATR)`) and produces an `OrderIntent`;
-order execution (Decimal quantization, account/PnL) is not yet implemented.
+(`size = equity * risk_per_trade / (atr_mult * ATR)`) and produces an `OrderIntent`.
+The `OrderManager` then quantizes it to the instrument's `qty_step` (`float -> Decimal`,
+with min-qty / min-notional checks) and places a **spot market** order — or simulates
+the fill when `DRY_RUN=true`. The stop is monitored locally by the engine and position
+/ realized PnL are tracked in-process (paper equity from `starting_equity`).
+
+Still out of scope: resting limit orders, native exchange stops/TP-SL, real
+balance/position sync, and multi-position handling.
 
 ## License
 
