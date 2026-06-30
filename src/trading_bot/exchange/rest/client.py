@@ -1,18 +1,35 @@
 import asyncio
+import hashlib
+import hmac
+import time
+from decimal import Decimal
 
+import msgspec
 import zapros
 from loguru import logger
 from zapros import AsyncClient
 
 from trading_bot.exchange.interfaces import IExchangeRestClient
-from trading_bot.exchange.rest.extractors import BybitKlineExtractor
-from trading_bot.models.account import OrderDTO, PositionDTO
+from trading_bot.exchange.rest.extractors import (
+    BybitInstrumentExtractor,
+    BybitKlineExtractor,
+)
+from trading_bot.models.account import InstrumentInfo, OrderDTO
 from trading_bot.models.market import KlineRestDTO
 
 
 class BybitRestClient(IExchangeRestClient):
-    def __init__(self, base_url: str):
+    def __init__(
+        self,
+        base_url: str,
+        api_key: str = "",
+        api_secret: str = "",
+        recv_window: int = 5000,
+    ):
         super().__init__(base_url)
+        self._api_key = api_key
+        self._api_secret = api_secret.encode()
+        self._recv_window = str(recv_window)
 
     async def _get_json(self, path: str, params: dict | None = None) -> dict:
         """Get JSON data from Bybit API.
@@ -105,12 +122,74 @@ class BybitRestClient(IExchangeRestClient):
 
         return result_klines_list
 
-    async def get_active_position(self, symbol: str) -> PositionDTO | None:
-        pass
-        """params = {"symbol": symbol}
-        response_json = await self._get_json("/v5/position/position-info", params)
-        return response_json["result"][0]
-        """
+    async def _post_signed(self, path: str, body: dict) -> dict:
+        """Signed POST (Bybit v5). Returns the parsed JSON; never swallows errors —
+        callers must know whether an order was accepted.
 
-    async def get_open_orders(self) -> list[OrderDTO]:
-        pass
+        The signature covers ``timestamp + api_key + recv_window + raw_body``, so the
+        body is serialized once and the exact bytes are both signed and sent.
+        """
+        timestamp = str(int(time.time() * 1000))
+        body_bytes = msgspec.json.encode(body)
+        payload = (timestamp + self._api_key + self._recv_window).encode() + body_bytes
+        signature = hmac.new(self._api_secret, payload, hashlib.sha256).hexdigest()
+
+        headers = {
+            "X-BAPI-API-KEY": self._api_key,
+            "X-BAPI-TIMESTAMP": timestamp,
+            "X-BAPI-RECV-WINDOW": self._recv_window,
+            "X-BAPI-SIGN": signature,
+            "Content-Type": "application/json",
+        }
+        async with AsyncClient() as client:
+            url = f"{self.base_url}{path}"
+            response = await client.post(url=url, headers=headers, body=body_bytes)
+            response.raise_for_status()
+            return response.json
+
+    async def place_market_order(
+        self, category: str, symbol: str, side: str, qty: Decimal
+    ) -> OrderDTO | None:
+        """Place a spot market order. ``side`` is Bybit-cased ("Buy"/"Sell")."""
+        body = {
+            "category": category,
+            "symbol": symbol,
+            "side": side,
+            "orderType": "Market",
+            "qty": str(qty),
+        }
+        try:
+            response_json = await self._post_signed("/v5/order/create", body)
+        except Exception as e:
+            logger.error(f"place_market_order request failed: {e}", exc_info=True)
+            return None
+
+        if response_json.get("retCode") != 0:
+            logger.error(
+                f"Order rejected (retCode={response_json.get('retCode')}): "
+                f"{response_json.get('retMsg')}"
+            )
+            return None
+
+        order_id = response_json.get("result", {}).get("orderId")
+        logger.info(f"Order accepted: {side} {qty} {symbol} (orderId={order_id})")
+        return OrderDTO(symbol=symbol, side=side, size=qty, price=Decimal(0))
+
+    async def get_instruments_info(
+        self, category: str, symbol: str
+    ) -> InstrumentInfo | None:
+        params = {"category": category, "symbol": symbol}
+        response_json = await self._get_json("/v5/market/instruments-info", params)
+        if response_json.get("retCode") != 0:
+            logger.error(
+                f"instruments-info error (retCode={response_json.get('retCode')}): "
+                f"{response_json.get('retMsg')}"
+            )
+            return None
+
+        items = response_json.get("result", {}).get("list", [])
+        if not items:
+            logger.error(f"No instrument info for {symbol}")
+            return None
+        logger.debug(f"Instrument info: {items[0]}")
+        return BybitInstrumentExtractor.to_dto(items[0])

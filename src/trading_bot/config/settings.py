@@ -61,6 +61,12 @@ class MarketKlineApi(BaseModel):
     limit: str
 
 
+class OrderApi(BaseModel):
+    create_path: str
+    instruments_path: str
+    recv_window: int = 5000
+
+
 class BotCoreConfig(BaseModel):
     api_delay_sec: int = 5
     maxlen: int = 1500
@@ -94,6 +100,7 @@ class Settings(BaseSettings):
     ws_categories: WSCategories
     ws_core_config: WSCoreConfig
     market_kline_api: MarketKlineApi
+    order_api: OrderApi
     intervals: Dict[str, int]
     bot: BotCoreConfig
 

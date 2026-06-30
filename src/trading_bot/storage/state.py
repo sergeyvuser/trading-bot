@@ -10,6 +10,7 @@ import asyncio
 import polars as pl
 
 from trading_bot.models.analysis import IndicatorSnapshot
+from trading_bot.models.position import Position
 
 
 class InMemoryState:
@@ -17,10 +18,13 @@ class InMemoryState:
         self._klines_dataframes: dict[str, pl.DataFrame] = {}  # {"BTCUSDT": DataFrame}
         self._indicator_snapshots: dict[str, IndicatorSnapshot] = {}
         self._last_prices: dict[str, float] = {}  # live price from WS ticks
+        self._positions: dict[str, Position] = {}  # open position per symbol
+        self._realized_pnl: dict[str, float] = {}  # cumulative paper PnL per symbol
 
         self._klines_lock = asyncio.Lock()
         self._snapshot_lock = asyncio.Lock()
         self._price_lock = asyncio.Lock()
+        self._position_lock = asyncio.Lock()
 
     # --- Klines (DataFrame, source of truth) ---
     async def set_klines_dataframe(
@@ -58,3 +62,24 @@ class InMemoryState:
     async def get_indicator_snapshot(self, symbol: str) -> IndicatorSnapshot | None:
         async with self._snapshot_lock:
             return self._indicator_snapshots.get(symbol)
+
+    # --- Position + realized PnL (local, paper until exchange sync lands) ---
+    async def get_position(self, symbol: str) -> Position | None:
+        async with self._position_lock:
+            return self._positions.get(symbol)
+
+    async def set_position(self, position: Position) -> None:
+        async with self._position_lock:
+            self._positions[position.symbol] = position
+
+    async def clear_position(self, symbol: str) -> None:
+        async with self._position_lock:
+            self._positions.pop(symbol, None)
+
+    async def get_realized_pnl(self, symbol: str) -> float:
+        async with self._position_lock:
+            return self._realized_pnl.get(symbol, 0.0)
+
+    async def add_realized_pnl(self, symbol: str, pnl: float) -> None:
+        async with self._position_lock:
+            self._realized_pnl[symbol] = self._realized_pnl.get(symbol, 0.0) + pnl

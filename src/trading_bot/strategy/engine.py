@@ -16,6 +16,7 @@ from trading_bot.models.market import SpotTickerDTO
 from trading_bot.models.signals import SignalType
 from trading_bot.storage.state import InMemoryState
 from trading_bot.strategy.interfaces import IStrategy
+from trading_bot.strategy.order_manager import OrderManager
 from trading_bot.strategy.risk import RiskManager
 
 
@@ -25,10 +26,12 @@ class TradingEngine:
         state: InMemoryState,
         strategy: IStrategy | None,
         risk_manager: RiskManager | None = None,
+        order_manager: OrderManager | None = None,
     ) -> None:
         self._state = state
         self._strategy = strategy
         self._risk_manager = risk_manager
+        self._order_manager = order_manager
         self._is_running = True
         self._symbol = strategy.symbol if strategy else None
         self._last_eval_price: float | None = None
@@ -58,19 +61,46 @@ class TradingEngine:
                 self._last_eval_price = price
                 self._last_eval_snap_ts = snap_ts
 
+                position = await self._state.get_position(self._symbol)
+
+                # Local stop: exit first, even on a HOLD tick (price-driven).
+                if (
+                    position is not None
+                    and self._order_manager is not None
+                    and price <= position.stop_loss  # spot long only
+                ):
+                    await self._order_manager.close(position, price, reason="stop")
+                    continue
+
                 signal = await self._strategy.on_tick(ticker, snapshot)
                 if signal is None or signal.type is SignalType.HOLD:
                     continue
                 logger.info(f"Signal: {signal.type.value} | {signal.reason}")
 
+                # Exit on an opposing SELL while long (spot has no shorting).
+                if position is not None:
+                    if signal.type is SignalType.SELL and self._order_manager is not None:
+                        await self._order_manager.close(position, price, reason="signal")
+                    continue
+
+                # Flat: only a BUY can open a spot position.
+                if signal.type is not SignalType.BUY:
+                    continue
+
                 if self._risk_manager is None:
                     continue
-                intent = self._risk_manager.evaluate(signal, snapshot)
-                if intent is not None:
-                    logger.info(
-                        f"OrderIntent: {intent.side} size={intent.size:.6f} "
-                        f"stop={intent.stop_loss:.2f} | {intent.reason}"
-                    )
+                realized_pnl = await self._state.get_realized_pnl(self._symbol)
+                intent = self._risk_manager.evaluate(
+                    signal, snapshot, in_position=False, realized_pnl=realized_pnl
+                )
+                if intent is None:
+                    continue
+                logger.info(
+                    f"OrderIntent: {intent.side} size={intent.size:.6f} "
+                    f"stop={intent.stop_loss:.2f} | {intent.reason}"
+                )
+                if self._order_manager is not None:
+                    await self._order_manager.open(intent, price)
             except Exception as e:
                 logger.error(f"Error in trading loop: {e}", exc_info=True)
             finally:

@@ -14,6 +14,7 @@ import msgspec
 import polars as pl
 from loguru import logger
 
+from trading_bot.models.account import InstrumentInfo
 from trading_bot.models.market import KlineRestDTO, SpotTickerDTO
 from trading_bot.models.polars_schemas import BYBIT_KLINE_RAW_SCHEMA
 from trading_bot.utils.time import ms_to_utc_datetime
@@ -135,6 +136,30 @@ class _BybitWsMessage(msgspec.Struct):
     topic: str | None = None
     ts: int = 0
     data: _BybitTickerData | None = None
+
+
+class BybitInstrumentExtractor:
+    """Maps a raw `/v5/market/instruments-info` spot item into InstrumentInfo.
+
+    Spot has no explicit qty step — ``basePrecision`` (the base-coin precision) is
+    the quantity grid; the price grid is ``priceFilter.tickSize``.
+    """
+
+    @staticmethod
+    def to_dto(raw: dict) -> InstrumentInfo:
+        lot = raw["lotSizeFilter"]
+        price = raw["priceFilter"]
+        return InstrumentInfo(
+            symbol=raw["symbol"],
+            base_coin=raw["baseCoin"],
+            quote_coin=raw["quoteCoin"],
+            status=raw["status"],
+            min_order_qty=Decimal(lot["minOrderQty"]),
+            max_order_qty=Decimal(lot["maxOrderQty"]),
+            min_order_amt=Decimal(lot["minOrderAmt"]),
+            tick_size=Decimal(price["tickSize"]),
+            qty_step=Decimal(lot["basePrecision"]),
+        )
 
 
 class BybitTickerExtractor:

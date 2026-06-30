@@ -2,9 +2,11 @@
 
 import asyncio
 from abc import ABC, abstractmethod
+from decimal import Decimal
 
 from loguru import logger
 
+from trading_bot.models.account import InstrumentInfo, OrderDTO
 from trading_bot.models.market import KlineRestDTO
 
 
@@ -56,40 +58,19 @@ class IExchangeRestClient(ABC):
     ) -> list:
         pass
 
-    """
     @abstractmethod
-    async def place_order(self, symbol: str, side: str, qty: Decimal, price: Decimal) -> dict:
+    async def place_market_order(
+        self, category: str, symbol: str, side: str, qty: Decimal
+    ) -> OrderDTO | None:
+        """Place a market order; returns the accepted order or None on failure."""
         pass
 
     @abstractmethod
-    async def cancel_order(self, order_id: str) -> dict:
+    async def get_instruments_info(
+        self, category: str, symbol: str
+    ) -> InstrumentInfo | None:
+        """Fetch contract specs (tick_size/qty_step/minimums) for quantization."""
         pass
-
-    @abstractmethod
-    async def get_open_orders(self) -> list[dict]:
-        pass
-
-    @abstractmethod
-    async def get_account_info(self) -> dict:
-        pass
-
-    @abstractmethod
-    async def get_position(self, symbol: str) -> dict:
-        pass
-        
-    @abstractmethod
-    async def get_positions(self) -> list[dict]:
-        pass
-    
-    @abstractmethod
-    async def get_total_balance(self) -> Decimal:
-        pass
-    
-    @abstractmethod
-    async def get_active_position(self, symbol: str) -> PositionDTO | None:
-        pass
-    
-    """
 
 
 class IExchangeWSClient(ABC):

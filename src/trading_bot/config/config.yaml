@@ -20,6 +20,11 @@ market_kline_api:
   path: "/v5/market/kline"
   limit: "1000" # Limit for data size per page. [1, 1000]. Default: 200
 
+order_api:
+  create_path: "/v5/order/create"
+  instruments_path: "/v5/market/instruments-info"
+  recv_window: 5000 # ms; Bybit X-BAPI-RECV-WINDOW
+
 logging:
   level: "DEBUG" # "INFO", "DEBUG", "WARNING", "ERROR", "TRACE"
   format: "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>"
